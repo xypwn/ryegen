@@ -75,6 +75,32 @@ go generate .
 go run . ./example.rye
 ```
 
+## Possible type conversions
+| Go                        | Direction | Rye          |
+|---------------------------|-----------|--------------|
+| any `int`/`uint` type     | ⇔        | integer      |
+| `float32`, `float64`      | ⇔        | decimal      |
+| `complex64`, `complex128` | ⇔        | complex      |
+| `bool`                    | ⇔        | boolean      |
+| `string`                  | ⇔        | string       |
+| `error`                   | ⇔        | error        |
+| `error`                   | ⇐        | string       |
+| `time.Time`               | ⇔        | time         |
+| `struct`                  | ⇐        | context      |
+| `struct`                  | ⇔        | native       |
+| `nil`                     | ⇔        | void         |
+| `[]T`                     | ⇔        | block        |
+| `[N]T`                    | ⇔        | block        |
+| `map[string]T`            | ⇒        | dict         |
+| `func`                    | ⇒        | varbuiltin   |
+| `func`                    | ⇐        | function     |
+| `chan T`                  | ⇔        | channel      |
+| `interface`               | ⇐        | context      |
+| `interface`               | ⇔        | native       |
+| multiple return values    | ⇔        | block        |
+
+If the target Go type is `any`, the most general type corresponding to the Rye type is selected (i.e. `int64`, `float64` or `complex128`).
+
 ## Import dependency handling
 Besides the selected packages, Ryegen will also generate bindings for any packages required by their public APIs.
 
