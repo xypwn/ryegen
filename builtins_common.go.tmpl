@@ -1,0 +1,94 @@
+{{- $registerBaseBuiltins := "RegisterBaseBuiltins" -}}
+{{- $builtins := "RegisterBuiltins" -}}
+{{- if .GenerateMain -}}
+    {{- $registerBaseBuiltins = "registerBaseBuiltins" -}}
+    {{- $builtins = "registerBuiltins" -}}
+{{- end -}}
+
+import (
+	_env "github.com/refaktor/rye/env"
+	_evaldo "github.com/refaktor/rye/evaldo"
+{{- if .GenerateMain }}
+    _runner "github.com/refaktor/rye/runner"
+{{- end }}
+)
+
+func mustBuiltin(x _env.VarBuiltin, err error) *_env.VarBuiltin {
+	if err != nil {
+		panic(err)
+	}
+	return &x
+}
+
+{{ if .GenerateMain -}}
+func builtinsContext(ps *_env.ProgramState, builtins map[string]*_env.VarBuiltin, name string) *_env.RyeCtx {
+	ctx := ps.Ctx
+	ps.Ctx = _env.NewEnv(ps.Ctx)
+	_evaldo.RegisterVarBuiltins2(builtins, ps, name)
+	newctx := ps.Ctx
+	ps.Ctx = ctx
+	wordIdx := ps.Idx.IndexWord(name)
+	ps.Ctx.Mod(wordIdx, *newctx)
+	return newctx
+}
+
+func registerImportGo(ps *_env.ProgramState) {
+    packages := make(map[string]*_env.RyeCtx)
+    for pkg, builtins := range builtins {
+        packages[pkg] = builtinsContext(ps, builtins, "gopkg(" + pkg + ")")
+    }
+	_evaldo.RegisterVarBuiltins2(map[string]*_env.VarBuiltin{
+		"import\\go": {
+			Argsn: 1,
+			Fn: func(ps *_env.ProgramState, args ..._env.Object) _env.Object {
+				arg0, ok := args[0].(_env.String)
+				if !ok {
+					ps.FailureFlag = true
+					return _env.NewError("expected package name string, but got " + objectType(ps, args[0]))
+				}
+				pkg, ok := packages[arg0.Value]
+				if !ok {
+					ps.FailureFlag = true
+					return _env.NewError("unknown Go package \"" + arg0.Value + "\"")
+				}
+				return *pkg
+			},
+		},
+	}, ps, "base")
+}
+
+{{ end -}}
+
+func {{ $registerBaseBuiltins }}(ps *_env.ProgramState) {
+	_evaldo.RegisterVarBuiltins2(map[string]*_env.VarBuiltin{
+		"nil": {
+			Argsn: 0,
+			Fn: func(ps *_env.ProgramState, _ ..._env.Object) _env.Object {
+				return *_env.NewVoid()
+			},
+		},
+		"is-nil": {
+			Argsn: 1,
+			Fn: func(ps *_env.ProgramState, objs ..._env.Object) _env.Object {
+				_, ok := objs[0].(_env.Void)
+				return *_env.NewBoolean(ok)
+			},
+		},
+	}, ps, "base")
+}
+
+{{ if .GenerateMain -}}
+func main() {
+	_runner.DoMain(func(ps *_env.ProgramState) error {
+        {{ $registerBaseBuiltins }}(ps)
+        registerImportGo(ps)
+        return nil
+    })
+}
+{{- else -}}
+// Returns all generated builtins as map[<package name>]map[<builtin name>]<builtin>.
+func Builtins() map[string]map[string]*_env.VarBuiltin {
+	return builtins
+}
+{{- end }}
+

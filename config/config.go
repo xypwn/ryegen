@@ -75,7 +75,10 @@ type ConverterHelper struct {
 }
 
 type Config struct {
-	MakeError        toml.ErrorMaker   `toml:"-"`
+	MakeError        toml.ErrorMaker `toml:"-"`
+	NoMain           bool            `toml:"no-main"`
+	Package          string          `toml:"package"`
+	PackagePos       toml.FieldPosition
 	Imports          []string          `toml:"imports"`
 	Targets          []Target          `toml:"target"`
 	Sources          []Source          `toml:"source"`

@@ -5,6 +5,7 @@ use (
 	./examples/ebitengine
 	./examples/fyne
 	./examples/http
+	./examples/no-main
 	./examples/p5
 	./testdata
 )

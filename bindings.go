@@ -1,11 +1,13 @@
 package main
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"go/types"
 	"slices"
 	"strings"
+	"text/template"
 
 	"github.com/iancoleman/strcase"
 	"github.com/refaktor/ryegen/v2/config"
@@ -13,73 +15,14 @@ import (
 	"github.com/refaktor/ryegen/v2/converter/typeset"
 )
 
-const builtinsCommonCode = `import (
-	_env "github.com/refaktor/rye/env"
-	_evaldo "github.com/refaktor/rye/evaldo"
-	_runner "github.com/refaktor/rye/runner"
-)
-
-func mustBuiltin(x _env.VarBuiltin, err error) *_env.VarBuiltin {
-	if err != nil {
-		panic(err)
-	}
-	return &x
+type builtinsCommonTemplateData struct {
+	GenerateMain bool
 }
 
-func builtinsContext(ps *_env.ProgramState, builtins map[string]*_env.VarBuiltin, name string) *_env.RyeCtx {
-	ctx := ps.Ctx
-	ps.Ctx = _env.NewEnv(ps.Ctx)
-	_evaldo.RegisterVarBuiltins2(builtins, ps, name)
-	newctx := ps.Ctx
-	ps.Ctx = ctx
-	wordIdx := ps.Idx.IndexWord(name)
-	ps.Ctx.Mod(wordIdx, *newctx)
-	return newctx
-}
+//go:embed builtins_common.go.tmpl
+var builtinsCommonTemplateCode string
 
-var packages = map[string]*_env.RyeCtx{}
-
-func main() {
-	_runner.DoMain(func(ps *_env.ProgramState) error {
-		for pkg, builtins := range builtins {
-			packages[pkg] = builtinsContext(ps, builtins, "gopkg(" + pkg + ")")
-		}
-		_evaldo.RegisterVarBuiltins2(map[string]*_env.VarBuiltin{
-			"nil": {
-				Argsn: 0,
-				Fn: func(ps *_env.ProgramState, _ ..._env.Object) _env.Object {
-					return *_env.NewVoid()
-				},
-			},
-			"is-nil": {
-				Argsn: 1,
-				Fn: func(ps *_env.ProgramState, objs ..._env.Object) _env.Object {
-					_, ok := objs[0].(_env.Void)
-					return *_env.NewBoolean(ok)
-				},
-			},
-			"import\\go": {
-				Argsn: 1,
-				Fn: func(ps *_env.ProgramState, args ..._env.Object) _env.Object {
-					arg0, ok := args[0].(_env.String)
-					if !ok {
-						ps.FailureFlag = true
-						return _env.NewError("expected package name string, but got " + objectType(ps, args[0]))
-					}
-					pkg, ok := packages[arg0.Value]
-					if !ok {
-						ps.FailureFlag = true
-						return _env.NewError("unknown Go package \"" + arg0.Value + "\"")
-					}
-					return *pkg
-				},
-			},
-		}, ps, "base")
-		return nil
-	})
-}
-
-`
+var builtinsCommonTemplate = template.Must(template.New("builtins_common").Parse(builtinsCommonTemplateCode))
 
 type bindingType int
 

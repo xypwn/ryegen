@@ -5,10 +5,10 @@
 ryegen_conv_graph.*
 /testdata/*.out_*.go
 /testdata/*.log
-/examples/*/_ryegen_src
-/examples/*/ryegen_*
-/examples/*/*.log
-/examples/*/cpu.prof
+/examples/**/_ryegen_src
+/examples/**/ryegen_*
+/examples/**/*.log
+/examples/**/cpu.prof
 test_results.txt
 stdout.txt
 

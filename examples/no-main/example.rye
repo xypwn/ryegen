@@ -1,0 +1,3 @@
+; Using add and urlencode functions we defined in api/api.go
+print add 1 2
+print urlencode "enc*de thi$"

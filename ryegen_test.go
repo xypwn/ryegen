@@ -155,7 +155,8 @@ func init() {
 	{
 		var out bytes.Buffer
 		out.WriteString("package main\n\n")
-		out.WriteString(builtinsCommonCode)
+		err := builtinsCommonTemplate.Execute(&out, builtinsCommonTemplateData{GenerateMain: true})
+		require.NoError(err)
 		out.WriteString("var builtins0 = map[string]*_env.VarBuiltin{\n")
 		for i, fn := range bindings {
 			if !graph.Contains(fn.requiredConverter, converter.ToRye) {
@@ -167,7 +168,7 @@ func init() {
 		}
 		out.WriteString("}\n\n")
 		out.WriteString(`var builtins = map[string]map[string]*_env.VarBuiltin{"example.com": builtins0}` + "\n\n")
-		err := os.WriteFile(filepath.Join(dir, builtinsFileName), out.Bytes(), 0666)
+		err = os.WriteFile(filepath.Join(dir, builtinsFileName), out.Bytes(), 0666)
 		require.NoError(err)
 	}
 

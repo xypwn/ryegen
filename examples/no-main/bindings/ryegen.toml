@@ -1,0 +1,11 @@
+# Don't generate an entry point for
+# the interpreter.
+no-main = true
+# Set a custom package name (directory name by default if no-main=true)
+#package = 'bindings'
+
+[[source]]
+packages = ['../api']
+
+[[rule]]
+action.to-casing = 'kebab'
