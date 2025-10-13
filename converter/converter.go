@@ -364,10 +364,6 @@ func (cs *ConverterSet) templateName(typ types.Type) (string, error) {
 	case *types.Pointer:
 		return "pointer", nil
 	case *types.Named:
-		if types.IsInterface(typ) {
-			return "interface", nil
-		}
-
 		var pkgPath string
 		if typ.Obj().Pkg() != nil {
 			pkgPath = typ.Obj().Pkg().Path()
@@ -382,6 +378,9 @@ func (cs *ConverterSet) templateName(typ types.Type) (string, error) {
 			if typ.Obj().Name() == "Time" {
 				return "time", nil
 			}
+		}
+		if types.IsInterface(typ) {
+			return "interface", nil
 		}
 		return "named", nil
 	case *types.Map:

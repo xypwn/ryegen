@@ -79,8 +79,11 @@ func {{ conv . fromRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Obje
 	if x, ok := obj.(_env.Error); ok {
 		return _errors.New(x.Print(*ps.Idx)), nil
 	}
-	{{- template "tryFromNative" . }}
-	return nil, {{ template "flatTypeErr" . }}
+	x, err := {{ conv .Underlying fromRye }}(ps, ctx, obj)
+	if err != nil {
+		return nil, _errors.New("expected error, native interface or context with method Error, but got " + objectType(ps, obj))
+	}
+	return x, nil
 }
 {{- end }}
 
@@ -419,7 +422,7 @@ func {{ conv . fromRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Obje
 {{- else -}}
 
 func {{ conv . fromRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Object) ({{ typStr . }}, error) {
-	return {{ conv ((universe).Lookup "any").Type fromRye }}(ps, ctx, obj)
+	return {{ conv (universe.Lookup "any").Type fromRye }}(ps, ctx, obj)
 }
 
 {{- end -}}{{- /*if $ms.Len*/ -}}

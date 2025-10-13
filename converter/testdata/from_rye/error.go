@@ -1,50 +1,16 @@
 var pkgLookup = make(map[string]string, 0)
-// error
-type interface_9f7452dd75d54d31 struct {
-	ps *_env.ProgramState
-	ctx *_env.RyeCtx
-	fn_Error func() string
-}
-func (i *interface_9f7452dd75d54d31) Error() (_ string) {
-	if i.fn_Error == nil {
-		return
-	}
-	return i.fn_Error()
-}
 func conv_error_fromRye(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Object) (error, error) {
 	if isNil(obj) {
 		return nil, nil
 	}
-	if nat, ok := obj.(_env.Native); ok {
-		if v, ok := nat.Value.(error); ok {
-			return v, nil
-		}
+	if x, ok := obj.(_env.Error); ok {
+		return _errors.New(x.Print(*ps.Idx)), nil
 	}
-	c, ok := obj.(_env.RyeCtx)
-	if !ok {
-		return nil, _errors.New("expected native interface or context with methods " + "Error" + ", but got " + objectType(ps, obj))
+	x, err := conv_interface_26ea19a2929a2856_fromRye(ps, ctx, obj)
+	if err != nil {
+		return nil, _errors.New("expected error, native interface or context with method Error, but got " + objectType(ps, obj))
 	}
-	i := &interface_9f7452dd75d54d31{
-		ps: ps,
-		ctx: ctx,
-	}
-	var idx int
-	idx, ok = ps.Idx.GetIndex("Error")
-	if ok {
-		var m _env.Object
-		m, ok = c.Get(idx)
-		if ok {
-			fn, err := conv_func_c4f955a1345caff5_fromRye(ps, &c, m)
-			if err != nil {
-				return nil, err
-			}
-			i.fn_Error = fn
-		}
-	}
-	if !ok {
-		return nil, _errors.New("expected context with method Error() (string)")
-	}
-	return i, nil
+	return x, nil
 }
 
 func conv_func_c4f955a1345caff5_fromRye(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Object) (func() string, error) {
@@ -75,6 +41,54 @@ func conv_func_c4f955a1345caff5_fromRye(ps *_env.ProgramState, ctx *_env.RyeCtx,
 		}
 	}
 	return nil, _errors.New("expected function or native of type go(" + "func() string" + "), but got " + objectType(ps, obj))
+}
+
+// interface{Error() string}
+type interface_26ea19a2929a2856 struct {
+	ps *_env.ProgramState
+	ctx *_env.RyeCtx
+	fn_Error func() string
+}
+func (i *interface_26ea19a2929a2856) Error() (_ string) {
+	if i.fn_Error == nil {
+		return
+	}
+	return i.fn_Error()
+}
+func conv_interface_26ea19a2929a2856_fromRye(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Object) (interface{Error() string}, error) {
+	if isNil(obj) {
+		return nil, nil
+	}
+	if nat, ok := obj.(_env.Native); ok {
+		if v, ok := nat.Value.(interface{Error() string}); ok {
+			return v, nil
+		}
+	}
+	c, ok := obj.(_env.RyeCtx)
+	if !ok {
+		return nil, _errors.New("expected native interface or context with method " + "Error" + ", but got " + objectType(ps, obj))
+	}
+	i := &interface_26ea19a2929a2856{
+		ps: ps,
+		ctx: ctx,
+	}
+	var idx int
+	idx, ok = ps.Idx.GetIndex("Error")
+	if ok {
+		var m _env.Object
+		m, ok = c.Get(idx)
+		if ok {
+			fn, err := conv_func_c4f955a1345caff5_fromRye(ps, &c, m)
+			if err != nil {
+				return nil, err
+			}
+			i.fn_Error = fn
+		}
+	}
+	if !ok {
+		return nil, _errors.New("expected context with method Error() (string)")
+	}
+	return i, nil
 }
 
 func conv_string_fromRye(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Object) (string, error) {

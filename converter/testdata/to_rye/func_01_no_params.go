@@ -11,7 +11,7 @@ func conv_func_1926bfa0a15a6c3c_toRye(ps *_env.ProgramState, ctx *_env.RyeCtx, f
 			res, err := outfnErrable(ps, ps.Ctx, args...)
 			if err != nil {
 				ps.FailureFlag = true
-				return _env.NewError(err.Error())
+				return *_env.NewError(err.Error())
 			}
 			return res
 		},

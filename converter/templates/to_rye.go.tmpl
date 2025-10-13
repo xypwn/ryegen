@@ -48,7 +48,7 @@ func {{ conv . toRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, x {{ typStr . }
 	if x == nil {
 		return *_env.NewVoid(), nil
 	}
-	return _env.NewError(x.Error()), nil
+	return *_env.NewError(x.Error()), nil
 }
 {{- end }}
 
@@ -194,7 +194,7 @@ func {{ conv . toRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, fn {{ typStr . 
 			res, err := outfnErrable(ps, ps.Ctx, args...)
 			if err != nil {
 				ps.FailureFlag = true
-				return _env.NewError(err.Error())
+				return *_env.NewError(err.Error())
 			}
 			return res
 		},

@@ -1,10 +1,7 @@
 var pkgLookup = make(map[string]string, 0)
-func conv_error_toRye(ps *_env.ProgramState, ctx *_env.RyeCtx, s error) (_env.Object, error) {
-	if s == nil {
+func conv_error_toRye(ps *_env.ProgramState, ctx *_env.RyeCtx, x error) (_env.Object, error) {
+	if x == nil {
 		return *_env.NewVoid(), nil
 	}
-	if nat, ok := autoToNative(ps, s); ok {
-		return nat, nil
-	}
-	return *_env.NewNative(ps.Idx, s, "go(error)"), nil
+	return *_env.NewError(x.Error()), nil
 }

@@ -1,0 +1,16 @@
+example: import\go "example.com"
+
+try { example/Fail } |print
+
+example/PrintError try { ^fail "lol" }
+
+example/PrintError try { example/Fail }
+
+example/PrintError context {
+    msg: "custom error"
+    Error: does { msg }
+}
+
+example/GetFailure -> 0 |print
+
+example/GetFailure -> 0 |example/PrintError
