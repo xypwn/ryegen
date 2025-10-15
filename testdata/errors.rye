@@ -11,6 +11,8 @@ example/PrintError context {
     Error: does { msg }
 }
 
+example/PrintError "string error"
+
 example/GetFailure -> 0 |print
 
 example/GetFailure -> 0 |example/PrintError

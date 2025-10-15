@@ -84,7 +84,7 @@ go run . ./example.rye
 | `bool`                    | ⇔        | boolean      |
 | `string`                  | ⇔        | string       |
 | `error`                   | ⇔        | error        |
-| `error`                   | ⇐        | string       |
+| `error`                   | ⇐        | string, context |
 | `time.Time`               | ⇔        | time         |
 | `struct`                  | ⇐        | context      |
 | `struct`                  | ⇔        | native       |
