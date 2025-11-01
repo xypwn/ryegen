@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/refaktor/ryegen/v2/converter/typeset"
+	"github.com/refaktor/ryegen/v2/typeutils"
 )
 
 func makeFuncBinding(f *types.Func, tset *typeset.TypeSet) binding {
@@ -48,7 +49,20 @@ func makeFuncBinding(f *types.Func, tset *typeset.TypeSet) binding {
 	return bf
 }
 
-func makeConstructorBinding(typ *types.Named, tset *typeset.TypeSet) binding {
+func makeConstructorBinding(typ types.Type, tset *typeset.TypeSet) binding {
+	// Figure out type object
+	var obj types.Object
+	{
+		switch typ := typ.(type) {
+		case *types.Alias:
+			obj = typ.Obj()
+		case *types.Named:
+			obj = typ.Obj()
+		default:
+			panic("makeConstructorBinding: recvTyp must be Alias or Named, but got: " + typ.String())
+		}
+	}
+
 	signature := types.NewSignatureType(
 		nil, nil, nil,
 		types.NewTuple(types.NewVar(token.NoPos, nil, "", typ)),
@@ -61,15 +75,28 @@ func makeConstructorBinding(typ *types.Named, tset *typeset.TypeSet) binding {
 			tset.TypeString(typ),
 			tset.TypeString(typ),
 		),
-		pkg:               typ.Obj().Pkg(),
+		pkg:               obj.Pkg(),
 		requiredConverter: signature,
-		funcCodeImports:   []*types.Package{typ.Obj().Pkg()},
+		funcCodeImports:   []*types.Package{obj.Pkg()},
 	}
-	bf.fillPropsAndRecv(typ.Obj().Name(), tset)
+	bf.fillPropsAndRecv(obj.Name(), tset)
 	return bf
 }
 
-func makeGetUnderlyingBinding(typ *types.Named, tset *typeset.TypeSet) binding {
+func makeGetUnderlyingBinding(typ types.Type, tset *typeset.TypeSet) binding {
+	// Figure out type object
+	var obj types.Object
+	{
+		switch typ := typ.(type) {
+		case *types.Alias:
+			obj = typ.Obj()
+		case *types.Named:
+			obj = typ.Obj()
+		default:
+			panic("makeGetUnderlyingBinding: recvTyp must be Alias or Named, but got: " + typ.String())
+		}
+	}
+
 	under := typ.Underlying()
 	signature := types.NewSignatureType(
 		types.NewVar(token.NoPos, nil, "", typ),
@@ -84,9 +111,9 @@ func makeGetUnderlyingBinding(typ *types.Named, tset *typeset.TypeSet) binding {
 			tset.TypeString(under),
 			tset.TypeString(under),
 		),
-		pkg:               typ.Obj().Pkg(),
+		pkg:               obj.Pkg(),
 		requiredConverter: signature,
-		funcCodeImports:   []*types.Package{typ.Obj().Pkg()},
+		funcCodeImports:   []*types.Package{obj.Pkg()},
 	}
 	bf.fillPropsAndRecv("(?)", tset)
 	return bf
@@ -133,7 +160,7 @@ func makeFieldGetterBindings(typ types.Type, tset *typeset.TypeSet) []binding {
 			requiredImports = append(requiredImports, pkg)
 		}
 
-		requiredImports = append(requiredImports, collectImports(field.Type())...)
+		requiredImports = append(requiredImports, typeutils.CollectImports(field.Type())...)
 		bf := binding{
 			typ: bindingGetter,
 			funcCode: fmt.Sprintf(`func(s *%v) %v { return %vs.%v }`,
@@ -191,7 +218,7 @@ func makeFieldSetterBindings(typ types.Type, tset *typeset.TypeSet) []binding {
 		if pkg != nil {
 			requiredImports = append(requiredImports, pkg)
 		}
-		requiredImports = append(requiredImports, collectImports(field.Type())...)
+		requiredImports = append(requiredImports, typeutils.CollectImports(field.Type())...)
 
 		bf := binding{
 			typ: bindingSetter,
@@ -262,18 +289,35 @@ func makeGlobalSetterBinding(obj types.Object, tset *typeset.TypeSet) binding {
 	return bf
 }
 
-func makeMethodBindings(namedTyp *types.Named, tset *typeset.TypeSet) []binding {
+func makeMethodBindings(recvTyp types.Type, tset *typeset.TypeSet) []binding {
 	var bindings []binding
-	recvTyp := types.Type(namedTyp)
-	if iface, ok := namedTyp.Underlying().(*types.Interface); ok {
+	if iface, ok := recvTyp.Underlying().(*types.Interface); ok {
 		if !iface.IsMethodSet() {
 			// Contains type constraints
 			return nil
 		}
 	} else {
 		// Only non-interface can be pointer receiver
-		recvTyp = types.NewPointer(namedTyp)
+		recvTyp = types.NewPointer(recvTyp)
 	}
+
+	// Figure out receiver type object
+	var recvObj types.Object
+	{
+		rt := recvTyp
+		if p, ok := rt.(*types.Pointer); ok {
+			rt = p.Elem()
+		}
+		switch rt := rt.(type) {
+		case *types.Alias:
+			recvObj = rt.Obj()
+		case *types.Named:
+			recvObj = rt.Obj()
+		default:
+			panic("makeMethodBindings: recvTyp must be (Pointer to) Alias or Named, but got: " + recvTyp.String())
+		}
+	}
+
 	ms := types.NewMethodSet(recvTyp)
 	for m := range ms.Methods() {
 		m := m.Obj().(*types.Func)
@@ -282,12 +326,11 @@ func makeMethodBindings(namedTyp *types.Named, tset *typeset.TypeSet) []binding 
 		}
 		{
 			// Receiver is currently the receiver the method was declared on.
-			// Set receiver to the current type we're actually binding methods for.
-			recv := m.Signature().Recv()
+			// Set receiver to the receiver type determined by the consumer.
 			sig := m.Signature()
-			m = types.NewFunc(m.Pos(), namedTyp.Obj().Pkg(), m.Name(),
+			m = types.NewFunc(m.Pos(), recvObj.Pkg(), m.Name(),
 				types.NewSignatureType(
-					types.NewVar(recv.Pos(), namedTyp.Obj().Pkg(), "", recvTyp),
+					types.NewVar(recvObj.Pos(), recvObj.Pkg(), "", recvTyp),
 					nil, //slices.Collect(sig.RecvTypeParams().TypeParams()),
 					nil, //slices.Collect(sig.TypeParams().TypeParams()),
 					sig.Params(),
@@ -304,7 +347,7 @@ func makeMethodBindings(namedTyp *types.Named, tset *typeset.TypeSet) []binding 
 
 func makePkgBindings(tset *typeset.TypeSet, typesInfo *types.Info, files []*ast.File) []binding {
 	var bindings []binding
-	namedTypes := map[string]*types.Named{}
+	namedOrAliasTypes := map[string]types.Type{} // must be Named or Alias to Named
 	structAliasTypes := map[string]*types.Alias{}
 	for _, f := range files {
 		for _, decl := range f.Decls {
@@ -329,10 +372,25 @@ func makePkgBindings(tset *typeset.TypeSet, typesInfo *types.Info, files []*ast.
 							if !spec.Name.IsExported() {
 								continue
 							}
-							namedTyp, ok := typesInfo.ObjectOf(spec.Name).Type().(*types.Named)
-							if !ok {
-								// Alias type (doesn't have any methods)
-								continue
+							var namedTyp *types.Named
+							var namedOrAliasTyp types.Type
+							switch typ := typesInfo.ObjectOf(spec.Name).Type().(type) {
+							case *types.Named:
+								namedTyp = typ
+								namedOrAliasTyp = namedTyp
+							case *types.Alias:
+								if t, ok := typ.Rhs().(*types.Named); ok && !typeutils.IsObjPublic(t.Obj()) {
+									// Special case: Alias refers to a private type. We want to generate the
+									// method bindings with the alias as receiver, since the alias is public.
+									//
+									// The counterpart in the TypeSet to this is that public aliases to private
+									// types are only unaliased to the point of remaining public.
+									namedTyp = t
+									namedOrAliasTyp = typ
+								} else {
+									// Regular alias type (doesn't have any methods)
+									continue
+								}
 							}
 							if namedTyp.TypeParams() != nil {
 								continue
@@ -346,8 +404,8 @@ func makePkgBindings(tset *typeset.TypeSet, typesInfo *types.Info, files []*ast.
 							for m := range namedTyp.Methods() {
 								addStructAliasTypes(structAliasTypes, tset, tset.Normalized(m.Signature()))
 							}
-							bindings = append(bindings, makeMethodBindings(namedTyp, tset)...)
-							namedTypes[spec.Name.Name] = typesInfo.ObjectOf(spec.Name).Type().(*types.Named)
+							bindings = append(bindings, makeMethodBindings(namedOrAliasTyp, tset)...)
+							namedOrAliasTypes[spec.Name.Name] = namedOrAliasTyp
 						}
 					}
 				case token.CONST, token.VAR:
@@ -371,8 +429,8 @@ func makePkgBindings(tset *typeset.TypeSet, typesInfo *types.Info, files []*ast.
 		}
 	}
 
-	for _, typName := range slices.Sorted(maps.Keys(namedTypes)) {
-		typ := namedTypes[typName]
+	for _, typName := range slices.Sorted(maps.Keys(namedOrAliasTypes)) {
+		typ := namedOrAliasTypes[typName]
 
 		bindings = append(bindings, makeConstructorBinding(typ, tset))
 		bindings = append(bindings, makeGetUnderlyingBinding(typ, tset))

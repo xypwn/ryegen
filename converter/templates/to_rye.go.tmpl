@@ -117,6 +117,9 @@ func {{ conv . toRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, m {{ typStr . }
 
 
 {{ define "named" -}}
+{{- /* Note that named can be either a named type, or an alias to a named type.
+       If it's an alias, the reason is that the named type is unexported, so the alias
+	   is the only way to publically access the named type. */ -}}
 {{- /* interface => we should try to emit the underlying type (if exported) instead of the interface */ -}}
 {{- /* non-interface => we should assume the underlying type to be a pointer.
        This is because every type needs to be mutable if passed by reference.

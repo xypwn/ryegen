@@ -6,9 +6,12 @@ func conv_error_fromRye(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Object
 	if x, ok := obj.(_env.Error); ok {
 		return _errors.New(x.Print(*ps.Idx)), nil
 	}
+	if x, ok := obj.(_env.String); ok {
+		return _errors.New(x.Value), nil
+	}
 	x, err := conv_interface_26ea19a2929a2856_fromRye(ps, ctx, obj)
 	if err != nil {
-		return nil, _errors.New("expected error, native interface or context with method Error, but got " + objectType(ps, obj))
+		return nil, _errors.New("expected error, string, native interface or context with method Error, but got " + objectType(ps, obj))
 	}
 	return x, nil
 }

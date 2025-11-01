@@ -1,0 +1,6 @@
+example: import\go "example.com"
+
+p: example/Priv context { B: 20 }
+p .A! 10
+
+p .SayHello

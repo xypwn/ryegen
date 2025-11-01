@@ -2,8 +2,8 @@
 Package walktypes simplifies recursively iterating over types from the Go [types] package.
 
 The functions [Walk], [WalkErr], [WalkModify] and [WalkModifyErr] will recursively iterate
-through all children, except for named types' underlying type. This guarantees that no
-infinite recursion occurs with idiomatic usage.
+through all children, except for named and alias types' underlying types. This guarantees
+that no infinite recursion occurs with idiomatic usage.
 
 Idiomatic usage is:
 
@@ -59,12 +59,7 @@ func WalkErr(t types.Type, fn func(types.Type) error) error {
 	case *types.Basic:
 		return nil
 	case *types.Alias:
-		if t.Obj().Name() == "any" && t.Obj().Parent() == types.Universe {
-			// any may be declared as an alias to itself, in which case
-			// we don't want to recurse.
-			return nil
-		}
-		return walk(t.Rhs())
+		return nil
 	case *types.Array:
 		return walk(t.Elem())
 	case *types.Slice:
@@ -209,20 +204,7 @@ func WalkModifyErr(t types.Type, fn func(types.Type) (types.Type, error)) (types
 	case *types.Basic:
 		return t, nil
 	case *types.Alias:
-		rhs := t.Rhs()
-		if t.Obj().Name() == "any" && t.Obj().Parent() == types.Universe {
-			// any may be declared as an alias to itself, in which case
-			// we don't want to recurse.
-			return t, nil
-		}
-		rhs1, err := walk(rhs)
-		if err != nil {
-			return nil, err
-		}
-		if rhs1 == rhs {
-			return t, nil
-		}
-		return types.NewAlias(t.Obj(), rhs1), nil
+		return t, nil
 	case *types.Array:
 		elem := t.Elem()
 		elem1, err := walk(elem)

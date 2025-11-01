@@ -135,6 +135,9 @@ func {{ conv . fromRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Obje
 
 
 {{ define "named" -}}
+{{- /* Note that named can be either a named type, or an alias to a named type.
+       If it's an alias, the reason is that the named type is unexported, so the alias
+	   is the only way to publically access the named type. */ -}}
 {{- /* We should assume the underlying type to be a pointer. */ -}}
 {{- /* Interfaces are not handled here. */ -}}
 func {{ conv . fromRye }}(ps *_env.ProgramState, ctx *_env.RyeCtx, obj _env.Object) ({{ typStr . }}, error) {

@@ -19,14 +19,17 @@ import (
 	"slices"
 )
 
-// TypeSet handles stringification and automatic aliasing of types.
+// TypeSet is:
+//
+//	-A type normalizer:
+//	  -renames types: automatically aliases structs to keep the strings small
+//	  -moves function receiver into params
+//	-stringifier (it outputs and caches type strings)
 //
 // Note that TypeSet includes any function receivers in
 // its stringification (which differs from Go's types package).
 //
-// TypeSet also automatically creates aliases for struct types
-// so that their strings are kept small. You can query all
-// created aliases with [TypeSet.Aliases].
+// You can query all created struct aliases with [TypeSet.Aliases].
 type TypeSet struct {
 	qualifier types.Qualifier
 	nameCache map[types.Type]string     // unnormalized type to normalized string

@@ -8,6 +8,19 @@ theme: import\go "fyne/theme"
 a: app/new
 w: a .window "Hello, world!"
 
+show-settings: does {
+    pu: widget/pop-up
+        container/scroll container/vbox 
+            produce 20 [ widget/label "Scroll widget example" ] {
+                ::x
+                lbl:: widget/label "Option " ++ to-string x .length?
+                concat x [ lbl ]
+            }
+        w .canvas
+    pu .resize context { Width: 300.0 Height: 200.0 }
+    pu .show
+}
+
 w .set-main-menu fyne/main-menu [
     fyne/menu "File" [
         fyne/menu-item "Open" does {
@@ -25,7 +38,7 @@ w .set-main-menu fyne/main-menu [
             |icon! theme/file-icon
     ]
     fyne/menu "Settings" [
-        fyne/menu-item "Preferences" does { }
+        fyne/menu-item "Preferences" ?show-settings
             |icon! theme/settings-icon
     ]
 ]

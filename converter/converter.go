@@ -8,12 +8,14 @@ import (
 	"go/types"
 	"hash/fnv"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"text/template"
 
 	"github.com/refaktor/ryegen/v2/converter/typeset"
 	"github.com/refaktor/ryegen/v2/converter/walktypes"
+	"github.com/refaktor/ryegen/v2/typeutils"
 )
 
 var (
@@ -79,7 +81,13 @@ func typeHash(s string) string {
 //     to express the type in its Go representation
 //   - The type uses any generics
 //   - CGo is required
-func checkConvertible(t types.Type) error {
+func checkConvertible(t types.Type) (__res error) {
+	defer func() {
+		if strings.Contains(t.String(), "internal/gl.Context") {
+			fmt.Println("++++", t, reflect.TypeOf(t), __res)
+		}
+	}()
+
 	checkPkg := func(pkg *types.Package) error {
 		if pkg == nil {
 			return nil
@@ -162,7 +170,11 @@ func checkConvertible(t types.Type) error {
 			}
 
 			if types.IsInterface(t) {
-				return check(t.Underlying())
+				// The named interface converter relies
+				// on the underlying interface being convertible.
+				if err := check(t.Underlying()); err != nil {
+					return err
+				}
 			}
 
 			if err := checkTypeName(t.Obj()); err != nil {
@@ -243,25 +255,11 @@ func NewConverterSet(tset *typeset.TypeSet, basePkg string) *ConverterSet {
 		return cs.canConvert(info)
 	}
 	funcs["typStr"] = func(t types.Type) (string, error) {
-		var collectImports func(t types.Type)
-		collectImports = func(t types.Type) {
-			switch t := t.(type) {
-			case *types.Named:
-				if t.Obj().Exported() {
-					if pkg := t.Obj().Pkg(); pkg != nil {
-						if pkg.Path() != cs.basePkg {
-							cs.newImports = append(cs.newImports, pkg)
-						}
-					}
-				}
-			case *types.Basic:
-				if t.Kind() == types.UnsafePointer {
-					cs.newImports = append(cs.newImports, types.Unsafe)
-				}
-			}
-			walktypes.Walk(t, collectImports)
-		}
-		collectImports(t)
+		imps := typeutils.CollectImports(t)
+		imps = slices.DeleteFunc(imps, func(pkg *types.Package) bool {
+			return pkg != nil && pkg.Path() == cs.basePkg
+		})
+		cs.newImports = append(cs.newImports, imps...)
 		return cs.tset.TypeString(t), nil
 	}
 	funcs["typHash"] = func(typ types.Type) string {
@@ -285,6 +283,19 @@ func NewConverterSet(tset *typeset.TypeSet, basePkg string) *ConverterSet {
 }
 
 func (cs *ConverterSet) typeUniqueName(typ types.Type) string {
+	namedOrAliasName := func(typ types.Type, obj types.Object, targs *types.TypeList) string {
+		var name strings.Builder
+		if obj.Pkg() != nil {
+			fmt.Fprintf(&name, "%v_%v", cs.tset.Qualifier()(obj.Pkg()), obj.Name())
+		} else {
+			name.WriteString(obj.Name())
+		}
+		if targs != nil {
+			fmt.Fprintf(&name, "_%v", typeHash(cs.tset.TypeString(typ)))
+		}
+		return name.String()
+	}
+
 	switch typ := typ.(type) {
 	case *types.Alias:
 		if typ.Obj().Name() == "any" && typ.Obj().Parent() == types.Universe {
@@ -293,6 +304,7 @@ func (cs *ConverterSet) typeUniqueName(typ types.Type) string {
 		if cs.tset.ContainsAlias(typ) {
 			return typ.Obj().Name()
 		}
+		return namedOrAliasName(typ, typ.Obj(), typ.TypeArgs())
 	case *types.Basic:
 		if typ.Kind() == types.Invalid {
 			return "invalid"
@@ -301,16 +313,7 @@ func (cs *ConverterSet) typeUniqueName(typ types.Type) string {
 	case *types.Pointer:
 		return fmt.Sprintf("ptr_%v", cs.typeUniqueName(typ.Elem()))
 	case *types.Named:
-		var name strings.Builder
-		if typ.Obj().Pkg() != nil {
-			fmt.Fprintf(&name, "%v_%v", cs.tset.Qualifier()(typ.Obj().Pkg()), typ.Obj().Name())
-		} else {
-			name.WriteString(typ.Obj().Name())
-		}
-		if typ.TypeArgs() != nil {
-			fmt.Fprintf(&name, "_%v", typeHash(cs.tset.TypeString(typ)))
-		}
-		return name.String()
+		return namedOrAliasName(typ, typ.Obj(), typ.TypeArgs())
 	case *types.Signature:
 		return fmt.Sprintf("func_%v", typeHash(cs.tset.TypeString(typ)))
 	case *types.Map:
@@ -344,6 +347,9 @@ func (cs *ConverterSet) templateName(typ types.Type) (string, error) {
 	case *types.Alias:
 		if typ.Obj().Pkg() == nil && typ.Obj().Name() == "any" {
 			return "any", nil
+		}
+		if _, ok := types.Unalias(typ).(*types.Named); ok {
+			return "named", nil
 		}
 	case *types.Basic:
 		switch {
@@ -476,7 +482,7 @@ func (cs *ConverterSet) genGraph() convGraph {
 			typ := ci.typ
 			if cs.tset.ContainsAlias(typ) {
 				// We don't want a struct converter to deal with the aliased type
-				typ = typ.Underlying()
+				typ = typ.(*types.Alias).Rhs()
 			}
 
 			if err := checkConvertible(typ); err != nil {

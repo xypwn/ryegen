@@ -8,13 +8,49 @@ import (
 	"slices"
 
 	"github.com/refaktor/ryegen/v2/converter/walktypes"
+	"github.com/refaktor/ryegen/v2/typeutils"
 )
+
+// Similar to types.Unalias, but will stop following the
+// alias chain if a non-public object (i.e. internal or unexported)
+// is encountered.
+// The returned type will not have a non-public object (unless
+// the input was a non-public object).
+func unaliasKeepingPublic(typ types.Type) types.Type {
+	curr := typ
+	prev := curr
+	for {
+		switch t := curr.(type) {
+		case *types.Alias:
+			if t.Obj().Name() == "any" && t.Obj().Parent() == types.Universe {
+				// any can be an alias to itself, so stop looping
+				return curr
+			}
+			if typeutils.IsObjPublic(t.Obj()) {
+				prev = curr
+				curr = t.Rhs()
+			} else {
+				return prev
+			}
+		case *types.Named:
+			if typeutils.IsObjPublic(t.Obj()) {
+				return curr
+			} else {
+				return prev
+			}
+		default:
+			return curr
+		}
+	}
+}
 
 func normalizeFlat(typ types.Type) types.Type {
 	// Aliased types always behave exactly the same as the
 	// type R in "type A = R", even if they're nested within
 	// other types.
-	typ = types.Unalias(typ)
+	// But we do want to ensure the unaliased type is still
+	// reachable by the API.
+	typ = unaliasKeepingPublic(typ)
 
 	switch t := typ.(type) {
 	case *types.Signature:

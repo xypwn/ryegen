@@ -3,35 +3,11 @@ package main
 import (
 	"go/constant"
 	"go/types"
-	"maps"
-	"slices"
 	"strings"
 
 	"github.com/refaktor/ryegen/v2/converter/typeset"
 	"github.com/refaktor/ryegen/v2/converter/walktypes"
 )
-
-func collectImports(t types.Type) []*types.Package {
-	imports := map[string]*types.Package{}
-	var doCollectImports func(t types.Type)
-	doCollectImports = func(t types.Type) {
-		switch t := t.(type) {
-		case *types.Named:
-			if t.Obj().Exported() {
-				if pkg := t.Obj().Pkg(); pkg != nil {
-					imports[pkg.Path()] = pkg
-				}
-			}
-		case *types.Basic:
-			if t.Kind() == types.UnsafePointer {
-				imports["unsafe"] = types.Unsafe
-			}
-		}
-		walktypes.Walk(t, doCollectImports)
-	}
-	doCollectImports(t)
-	return slices.Collect(maps.Values(imports))
-}
 
 func addStructAliasTypes(structAliases map[string]*types.Alias, tset *typeset.TypeSet, t types.Type) {
 	var doAddStructAliasTypes func(t types.Type)
@@ -39,6 +15,10 @@ func addStructAliasTypes(structAliases map[string]*types.Alias, tset *typeset.Ty
 		if tset.ContainsAlias(t) {
 			alias := t.(*types.Alias)
 			structAliases[alias.Obj().Name()] = alias
+
+			// walktypes doesn't recurse into alias-RHS types, so do it manually.
+			doAddStructAliasTypes(types.Unalias(t))
+			return
 		}
 		walktypes.Walk(t, doAddStructAliasTypes)
 	}

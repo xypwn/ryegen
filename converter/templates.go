@@ -257,6 +257,9 @@ var templateFuncMap = template.FuncMap{
 	"universe": func() *types.Scope {
 		return types.Universe
 	},
+	// Follows the alias chain until the type is no longer an alias, returning
+	// the non-alias type.
+	"unalias": types.Unalias,
 
 	//
 	// Miscellaneous utility functions

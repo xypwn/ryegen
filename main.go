@@ -26,6 +26,7 @@ import (
 	"github.com/refaktor/ryegen/v2/converter/typeset"
 	"github.com/refaktor/ryegen/v2/digraphutils"
 	"github.com/refaktor/ryegen/v2/loader"
+	"github.com/refaktor/ryegen/v2/typeutils"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -428,7 +429,7 @@ re-running after "go mod tidy" might fix the error`, err)
 				// to represent the required converter func. I'm pretty
 				// sure - but not 100% - that this should correspond
 				// to collecting all API dependencies.
-				for _, pkg := range collectImports(bf.requiredConverter) {
+				for _, pkg := range typeutils.CollectImports(bf.requiredConverter) {
 					usedImports[pkg.Path()] = true
 				}
 			}
